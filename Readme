@@ -1,0 +1,8 @@
+You need to replace the placeholders in the script with actual values specific to your Azure environment.
+Run the below commands to get the value
+
+$subscriptionId = "<YourSubscriptionId>"
+$resourceGroupName = "<YourResourceGroupName>"
+$storageAccountName = "<YourStorageAccountName>"
+$containerName = "condition-access-ips"
+$fileName = "ConditionAccessIPs.txt"
