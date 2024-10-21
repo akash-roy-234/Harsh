@@ -1,10 +1,10 @@
-# Import the required modules
+# Import required modules
 Import-Module Az
 Import-Module Microsoft.Graph
 
-# Connect to Azure and Microsoft Graph
-Connect-AzAccount
-Connect-MgGraph -Scopes "Policy.Read.All"
+# Authenticate using Managed Identity
+$AzureContext = Connect-AzAccount -Identity
+Connect-MgGraph -Identity
 
 # Set variables
 $subscriptionId = "c3212b68-b822-4c28-bfc0-c0d0f0cf9d0"  # Your Subscription ID
@@ -54,7 +54,7 @@ function Store-IPsInStorageAccount {
         $fileName
     )
     
-    # Get Storage Account Key
+    # Get Storage Account Key using Managed Identity
     $storageAccountKey = (Get-AzStorageAccountKey -ResourceGroupName $resourceGroupName -Name $storageAccountName).Value[0]
     
     # Create a storage context
@@ -67,7 +67,7 @@ function Store-IPsInStorageAccount {
     }
     
     # Write IPs to a file
-    $filePath = "$PSScriptRoot\$fileName"
+    $filePath = "$env:TEMP\$fileName"
     $ipList | Out-File -FilePath $filePath
     
     # Upload the file to the blob container
