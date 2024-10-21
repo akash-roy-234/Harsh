@@ -1,6 +1,5 @@
 # Import required modules
 Import-Module Az
-Import-Module Microsoft.Graph
 
 # Authenticate using Managed Identity
 $AzureContext = Connect-AzAccount -Identity
@@ -8,6 +7,7 @@ Connect-MgGraph -Identity
 
 # Set variables
 $subscriptionId = "c3212b68-b822-4c28-bfc0-c0d0f0cf9d0"  # Your Subscription ID
+$tenantId = "0b6a780e-a9c6-4482-97dc-2aecb06ee1ba"  # Provided Tenant ID
 $resourceGroupName = "RG-TERRAFORM-001"  # Resource Group Name
 $storageAccountName = "stcrpsbx001dtf"  # Storage Account Name
 $containerName = "conditionalaccessip"  # Container Name
@@ -16,10 +16,17 @@ $fileName = "ConditionAccessIPs.txt"
 # Set the subscription context
 Select-AzSubscription -SubscriptionId $subscriptionId
 
-# Function to get Conditional Access policies using Microsoft Graph
+# Function to get Conditional Access policies using Microsoft Graph REST API
 function Get-ConditionalAccessPolicy {
-    $policies = Get-MgConditionalAccessPolicy
-    return $policies
+    $accessToken = (Get-AzAccessToken -Resource "https://graph.microsoft.com" -TenantId $tenantId).Token
+    $uri = "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies"
+
+    $headers = @{
+        Authorization = "Bearer $accessToken"
+    }
+
+    $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
+    return $response.value
 }
 
 # Function to extract IP addresses from Conditional Access policies
@@ -29,14 +36,20 @@ function Extract-IPsFromPolicies {
     )
     $ipList = @()
     foreach ($policy in $policies) {
-        if ($policy.Conditions.Applications.IncludeAllApplications -and $policy.Conditions.Locations) {
-            $locations = $policy.Conditions.Locations
-            if ($locations.IncludeLocations) {
-                $locationIds = $locations.IncludeLocations
+        if ($policy.conditions.applications.includeAllApplications -and $policy.conditions.locations) {
+            $locations = $policy.conditions.locations
+            if ($locations.includeLocations) {
+                $locationIds = $locations.includeLocations
                 foreach ($locationId in $locationIds) {
-                    $namedLocation = Get-MgIdentityConditionalAccessNamedLocation -ConditionalAccessNamedLocationId $locationId
-                    if ($namedLocation.ODataType -eq "#microsoft.graph.ipNamedLocation") {
-                        $ipList += $namedLocation.IpRanges
+                    # API call to get named location details
+                    $accessToken = (Get-AzAccessToken -Resource "https://graph.microsoft.com" -TenantId $tenantId).Token
+                    $uri = "https://graph.microsoft.com/v1.0/identity/conditionalAccess/namedLocations/$locationId"
+                    $headers = @{
+                        Authorization = "Bearer $accessToken"
+                    }
+                    $namedLocation = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
+                    if ($namedLocation["@odata.type"] -eq "#microsoft.graph.ipNamedLocation") {
+                        $ipList += $namedLocation.ipRanges
                     }
                 }
             }
