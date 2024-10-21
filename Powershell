@@ -1,8 +1,4 @@
-# Install the Az and AzureAD modules if not already installed
-# Install-Module -Name Az -AllowClobber -Scope CurrentUser
-# Install-Module -Name AzureAD -AllowClobber -Scope CurrentUser
-
-# Import the modules
+# Import the required modules
 Import-Module Az
 Import-Module AzureAD
 
@@ -11,10 +7,10 @@ Connect-AzAccount
 Connect-AzureAD
 
 # Set variables
-$subscriptionId = "<YourSubscriptionId>"
-$resourceGroupName = "<YourResourceGroupName>"
-$storageAccountName = "<YourStorageAccountName>"
-$containerName = "condition-access-ips"
+$subscriptionId = ""  # Fill in your Subscription ID
+$resourceGroupName = ""  # Fill in your Resource Group Name
+$storageAccountName = ""  # Fill in your Storage Account Name
+$containerName = ""  # Fill in your Container Name
 $fileName = "ConditionAccessIPs.txt"
 
 # Set the subscription context
