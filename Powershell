@@ -1,0 +1,90 @@
+# Install the Az and AzureAD modules if not already installed
+# Install-Module -Name Az -AllowClobber -Scope CurrentUser
+# Install-Module -Name AzureAD -AllowClobber -Scope CurrentUser
+
+# Import the modules
+Import-Module Az
+Import-Module AzureAD
+
+# Connect to Azure
+Connect-AzAccount
+Connect-AzureAD
+
+# Set variables
+$subscriptionId = "<YourSubscriptionId>"
+$resourceGroupName = "<YourResourceGroupName>"
+$storageAccountName = "<YourStorageAccountName>"
+$containerName = "condition-access-ips"
+$fileName = "ConditionAccessIPs.txt"
+
+# Set the subscription context
+Select-AzSubscription -SubscriptionId $subscriptionId
+
+# Function to get Conditional Access policies
+function Get-ConditionalAccessPolicy {
+    $policies = Get-AzureADMSConditionalAccessPolicy
+    return $policies
+}
+
+# Function to extract IP addresses from Conditional Access policies
+function Extract-IPsFromPolicies {
+    param (
+        $policies
+    )
+    $ipList = @()
+    foreach ($policy in $policies) {
+        if ($policy.Conditions.ClientAppTypes -contains "All" -and $policy.Conditions.Locations) {
+            $locations = $policy.Conditions.Locations
+            if ($locations.IncludeLocationIds) {
+                $locationIds = $locations.IncludeLocationIds
+                foreach ($locationId in $locationIds) {
+                    $namedLocation = Get-AzureADMSNamedLocationPolicy -Id $locationId
+                    if ($namedLocation.ODataType -eq "#microsoft.graph.ipNamedLocation") {
+                        $ipList += $namedLocation.IpRanges
+                    }
+                }
+            }
+        }
+    }
+    return $ipList
+}
+
+# Function to store IPs in the Storage Account
+function Store-IPsInStorageAccount {
+    param (
+        $ipList,
+        $storageAccountName,
+        $containerName,
+        $fileName
+    )
+    
+    # Get Storage Account Key
+    $storageAccountKey = (Get-AzStorageAccountKey -ResourceGroupName $resourceGroupName -Name $storageAccountName).Value[0]
+    
+    # Create a storage context
+    $context = New-AzStorageContext -StorageAccountName $storageAccountName -StorageAccountKey $storageAccountKey
+    
+    # Create a blob container if it doesn't exist
+    $container = Get-AzStorageContainer -Context $context -Name $containerName -ErrorAction SilentlyContinue
+    if (-not $container) {
+        $container = New-AzStorageContainer -Context $context -Name $containerName
+    }
+    
+    # Write IPs to a file
+    $filePath = "$PSScriptRoot\$fileName"
+    $ipList | Out-File -FilePath $filePath
+    
+    # Upload the file to the blob container
+    Set-AzStorageBlobContent -File $filePath -Container $containerName -Blob $fileName -Context $context
+}
+
+# Main logic
+$policies = Get-ConditionalAccessPolicy
+$ipList = Extract-IPsFromPolicies -policies $policies
+
+if ($ipList.Count -gt 0) {
+    Store-IPsInStorageAccount -ipList $ipList -storageAccountName $storageAccountName -containerName $containerName -fileName $fileName
+    Write-Host "IP addresses have been successfully extracted and stored in the Storage Account."
+} else {
+    Write-Host "No IP addresses found in Conditional Access policies."
+}
