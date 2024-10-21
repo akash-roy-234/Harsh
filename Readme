@@ -10,19 +10,31 @@ $fileName = "ConditionAccessIPs.txt"
 
 
 
+# Import Microsoft Graph module
+Import-Module Microsoft.Graph
+
+# Connect to Microsoft Graph
+Connect-MgGraph -Scopes "Application.ReadWrite.All", "Directory.ReadWrite.All"
+
 # Set variables
 $managedIdentityObjectId = "92c0bd04-2115-4c32-9210-cb02a2898dfb"  # Replace with your managed identity's object ID
 $tenantId = "0b6a780e-a9c6-4482-97dc-2aecb06ee1ba"  # Your tenant ID
 
-# Grant Microsoft Graph permissions to the managed identity
-$apiAppId = "00000003-0000-0000-c000-000000000000"  # Microsoft Graph App ID
-$permissionName = "Policy.Read.All"
+# Microsoft Graph app ID for Microsoft Graph
+$graphAppId = "00000003-0000-0000-c000-000000000000"  # This is the Microsoft Graph service principal app ID
+
+# Permission ID for Policy.Read.All
+$permissionId = "dc50a0fb-09a3-4b4e-8aeb-3c194e6f9a80"  # Permission ID for Policy.Read.All
 
 # Get the Microsoft Graph service principal
-$graphServicePrincipal = Get-AzADServicePrincipal -ApplicationId $apiAppId
+$graphServicePrincipal = Get-MgServicePrincipal -Filter "appId eq '$graphAppId'"
 
-# Create a new App Role Assignment for the managed identity
-New-AzADServicePrincipalAppRoleAssignment -ObjectId $managedIdentityObjectId `
-                                          -PrincipalId $managedIdentityObjectId `
-                                          -ResourceId $graphServicePrincipal.Id `
-                                          -Id ([Guid]"dc50a0fb-09a3-4b4e-8aeb-3c194e6f9a80")
+# Assign the app role
+$body = @{
+    principalId = $managedIdentityObjectId
+    resourceId = $graphServicePrincipal.Id
+    appRoleId = $permissionId
+}
+
+$uri = "https://graph.microsoft.com/v1.0/servicePrincipals/$($managedIdentityObjectId)/appRoleAssignments"
+Invoke-MgGraphRequest -Method POST -Uri $uri -Body ($body | ConvertTo-Json)
