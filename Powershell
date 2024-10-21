@@ -1,10 +1,10 @@
 # Import the required modules
 Import-Module Az
-Import-Module AzureAD
+Import-Module Microsoft.Graph
 
-# Connect to Azure
+# Connect to Azure and Microsoft Graph
 Connect-AzAccount
-Connect-AzureAD
+Connect-MgGraph -Scopes "Policy.Read.All"
 
 # Set variables
 $subscriptionId = "c3212b68-b822-4c28-bfc0-c0d0f0cf9d0"  # Your Subscription ID
@@ -16,9 +16,9 @@ $fileName = "ConditionAccessIPs.txt"
 # Set the subscription context
 Select-AzSubscription -SubscriptionId $subscriptionId
 
-# Function to get Conditional Access policies
+# Function to get Conditional Access policies using Microsoft Graph
 function Get-ConditionalAccessPolicy {
-    $policies = Get-AzureADMSConditionalAccessPolicy
+    $policies = Get-MgConditionalAccessPolicy
     return $policies
 }
 
@@ -29,12 +29,12 @@ function Extract-IPsFromPolicies {
     )
     $ipList = @()
     foreach ($policy in $policies) {
-        if ($policy.Conditions.ClientAppTypes -contains "All" -and $policy.Conditions.Locations) {
+        if ($policy.Conditions.Applications.IncludeAllApplications -and $policy.Conditions.Locations) {
             $locations = $policy.Conditions.Locations
-            if ($locations.IncludeLocationIds) {
-                $locationIds = $locations.IncludeLocationIds
+            if ($locations.IncludeLocations) {
+                $locationIds = $locations.IncludeLocations
                 foreach ($locationId in $locationIds) {
-                    $namedLocation = Get-AzureADMSNamedLocationPolicy -Id $locationId
+                    $namedLocation = Get-MgIdentityConditionalAccessNamedLocation -ConditionalAccessNamedLocationId $locationId
                     if ($namedLocation.ODataType -eq "#microsoft.graph.ipNamedLocation") {
                         $ipList += $namedLocation.IpRanges
                     }
