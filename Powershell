@@ -7,10 +7,10 @@ Connect-AzAccount
 Connect-AzureAD
 
 # Set variables
-$subscriptionId = ""  # Fill in your Subscription ID
-$resourceGroupName = ""  # Fill in your Resource Group Name
-$storageAccountName = ""  # Fill in your Storage Account Name
-$containerName = ""  # Fill in your Container Name
+$subscriptionId = "c3212b68-b822-4c28-bfc0-c0d0f0cf9d0"  # Your Subscription ID
+$resourceGroupName = "RG-TERRAFORM-001"  # Resource Group Name
+$storageAccountName = "stcrpsbx001dtf"  # Storage Account Name
+$containerName = "conditionalaccessip"  # Container Name
 $fileName = "ConditionAccessIPs.txt"
 
 # Set the subscription context
